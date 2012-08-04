@@ -1,231 +1,172 @@
-/* See LICENSE file for copyright and license details. */
-#include <dirent.h>
-#include <errno.h>
-#include <grp.h>
-#include <pwd.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <unistd.h>
+#include <utf.h>
+#include <dirent.h>
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <pwd.h>
+#include <errno.h>
 #include "util.h"
 
-typedef struct {
-	char *name;
-	mode_t mode;
-	nlink_t nlink;
-	uid_t uid;
-	gid_t gid;
-	off_t size;
-	time_t mtime;
-} Entry;
+enum {
+	aFlag =  1,
+	dFlag =  2,
+	lFlag =  4,
+	tFlag =  8,
+	RFlag = 16,
+	slashFlag = 32,
+};
 
-static int entcmp(Entry *, Entry *);
-static void ls(char *);
-static void lsdir(const char *);
-static void mkent(Entry *, char *);
-static void output(Entry *);
-
-static bool aflag = false;
-static bool dflag = false;
-static bool lflag = false;
-static bool tflag = false;
-static bool first = true;
-static bool many;
-
-int
-main(int argc, char *argv[])
-{
-	char c;
-	int i, n;
-	Entry *ents;
-
-	while((c = getopt(argc, argv, "adlt")) != -1)
-		switch(c) {
-		case 'a':
-			aflag = true;
-			break;
-		case 'd':
-			dflag = true;
-			break;
-		case 'l':
-			lflag = true;
-			break;
-		case 't':
-			tflag = true;
-			break;
-		default:
-			exit(EXIT_FAILURE);
+void ls1 (char *fmt, int flags, char *path) {
+	struct stat s;
+	if (lstat (path, &s) < 0) eprintf ("ls: %s:", path);
+	if (!(flags & lFlag)) fmt = "%N%n";
+	if (!fmt) fmt = "%p  %l %u %g %z %m %N%n";
+	for (; fmt[0]; fmt++) {
+		if (fmt[0] == '%') {
+			int w = 0, ii;
+			char *mode, *p;
+			if(!*fmt++) {
+				fputs ("ls: bad format\n", stderr);
+				exit (1);
+			}
+			mode = strdup ("----------");
+			if (!mode) eprintf ("ls:");
+			if (fmt[0] >= '0' && fmt[0] <= '9') w = strtoul (fmt, &fmt, 10);
+			switch (fmt[0]) {
+			case '%':
+				fputc ('%', stdout);
+				break;
+			case 'n':
+				fputc ('\n', stdout);
+				break;
+			case 't':
+				fputc ('\t', stdout);
+				break;
+			case 'd':
+				printf ("%*d", w ? w : 12, s.st_dev);
+				break;
+			case 'i':
+				printf ("%*d", w ? w : 16, s.st_ino);
+				break;
+			case 'p':
+				for (ii = 0; ii < 9; ii++) {
+					char *rwx;
+					rwx = "xwr";
+					if (s.st_mode & (1 << ii)) mode[9 - ii] = rwx[ii % 3];
+				}
+				if (s.st_mode & S_IFDIR) mode[0] = 'd';
+				printf ("%s", mode);
+				break;
+			case 'l':
+				printf ("%*d", w ? w : 4, s.st_nlink);
+				break;
+			case 'u':
+				printf ("%*d", w ? w : 12, s.st_uid);
+				break;
+			case 'g':
+				printf ("%*d", w ? w : 12, s.st_gid);
+				break;
+			case 'm':
+				printf ("%*d", w ? w : 20, s.st_mtime);
+				break;
+			case 'z':
+				printf ("%*d", w ? w : 16, s.st_size);
+				break;
+			case 'N':
+				p = flags & slashFlag ? 0 : utfrrune (path, L'/');
+				fputs (p ? p + runelen (L'/') : path, stdout);
+				break;
+			default:
+				fprintf (stderr, "ls: unrecognized format spec: %c\n", fmt[0]);
+				exit (1);
+			}
+			free (mode);
 		}
-	many = (argc > optind+1);
-
-	if((n = argc - optind) > 0) {
-		if(!(ents = malloc(n * sizeof *ents)))
-			eprintf("malloc:");
-		for(i = 0; i < n; i++)
-			mkent(&ents[i], argv[optind+i]);
-		qsort(ents, n, sizeof *ents, (int (*)(const void *, const void *))entcmp);
-		for(i = 0; i < n; i++)
-			ls(ents[i].name);
+		else fputc (fmt[0], stdout);
 	}
-	else
-		ls(".");
-	return EXIT_SUCCESS;
 }
 
-int
-entcmp(Entry *a, Entry *b)
-{
-	if(tflag)
-		return b->mtime - a->mtime;
-	else
-		return strcmp(a->name, b->name);
+int noDot (const struct dirent *e) {
+	return (e -> d_name[0] != '.');
 }
 
-void
-ls(char *path)
-{
-	Entry ent;
-
-	mkent(&ent, path);
-	if(S_ISDIR(ent.mode) && !dflag)
-		lsdir(path);
-	else
-		output(&ent);
+int comparMTime (const struct dirent **e, const struct dirent **f) {
+	struct stat s, t;
+	if (lstat ((*e) -> d_name, &s) < 0) eprintf ("ls: %s:", (*e) -> d_name);
+	if (lstat ((*f) -> d_name, &t) < 0) eprintf ("ls: %s:", (*f) -> d_name);
+	return ((int)(s.st_mtime - t.st_mtime));
 }
 
-void
-lsdir(const char *path)
-{
-	char *cwd, *p;
-	long i, n = 0;
-	struct dirent *d;
-	DIR *dp;
-	Entry *ents = NULL;
-
-	cwd = agetcwd();
-	if(!(dp = opendir(path)))
-		eprintf("opendir %s:", path);
-	if(chdir(path) == -1)
-		eprintf("chdir %s:", path);
-
-	while((d = readdir(dp))) {
-		if(d->d_name[0] == '.' && !aflag)
-			continue;
-		if(!(ents = realloc(ents, ++n * sizeof *ents)))
-			eprintf("realloc:");
-		if(!(p = malloc(strlen(d->d_name)+1)))
-			eprintf("malloc:");
-		strcpy(p, d->d_name);
-		mkent(&ents[n-1], p);
-	}
-	closedir(dp);
-	qsort(ents, n, sizeof *ents, (int (*)(const void *, const void *))entcmp);
-
-	if(many) {
-		if(!first)
-			putchar('\n');
-		printf("%s:\n", path);
-		first = false;
-	}
-	for(i = 0; i < n; i++) {
-		output(&ents[i]);
-		free(ents[i].name);
-	}
-	if(chdir(cwd) == -1)
-		eprintf("chdir %s:", cwd);
-	free(ents);
-	free(cwd);
+int comparName (const struct dirent **e, const struct dirent **f) {
+	return (strcmp ((*e) -> d_name, (*f) -> d_name));
 }
 
-void
-mkent(Entry *ent, char *path)
-{
-	struct stat st;
-
-	if(lstat(path, &st) == -1)
-		eprintf("lstat %s:", path);
-	ent->name   = path;
-	ent->mode   = st.st_mode;
-	ent->nlink  = st.st_nlink;
-	ent->uid    = st.st_uid;
-	ent->gid    = st.st_gid;
-	ent->size   = st.st_size;
-	ent->mtime  = st.st_mtime;
-}
-
-void
-output(Entry *ent)
-{
-	char buf[BUFSIZ], *fmt;
-	char mode[] = "----------";
-	ssize_t len;
-	struct group *gr;
-	struct passwd *pw;
-
-	if(!lflag) {
-		puts(ent->name);
+void ls (char *fmt, int flags, char *path) {
+	struct dirent **es;
+	int ii, n;
+	if (flags & dFlag) {
+		ls1 (fmt, flags, path);
 		return;
 	}
-	if(S_ISREG(ent->mode))
-		mode[0] = '-';
-	else if(S_ISBLK(ent->mode))
-		mode[0] = 'b';
-	else if(S_ISCHR(ent->mode))
-		mode[0] = 'c';
-	else if(S_ISDIR(ent->mode))
-		mode[0] = 'd';
-	else if(S_ISFIFO(ent->mode))
-		mode[0] = 'p';
-	else if(S_ISLNK(ent->mode))
-		mode[0] = 'l';
-	else if(S_ISSOCK(ent->mode))
-		mode[0] = 's';
-	else
-		mode[0] = '?';
-
-	if(ent->mode & S_IRUSR) mode[1] = 'r';
-	if(ent->mode & S_IWUSR) mode[2] = 'w';
-	if(ent->mode & S_IXUSR) mode[3] = 'x';
-	if(ent->mode & S_IRGRP) mode[4] = 'r';
-	if(ent->mode & S_IWGRP) mode[5] = 'w';
-	if(ent->mode & S_IXGRP) mode[6] = 'x';
-	if(ent->mode & S_IROTH) mode[7] = 'r';
-	if(ent->mode & S_IWOTH) mode[8] = 'w';
-	if(ent->mode & S_IXOTH) mode[9] = 'x';
-
-	if(ent->mode & S_ISUID) mode[3] = (mode[3] == 'x') ? 's' : 'S';
-	if(ent->mode & S_ISGID) mode[6] = (mode[6] == 'x') ? 's' : 'S';
-
-	errno = 0;
-	pw = getpwuid(ent->uid);
-	if(errno)
-		eprintf("getpwuid %d:", ent->uid);
-	else if(!pw)
-		eprintf("getpwuid %d: no such user\n", ent->uid);
-
-	errno = 0;
-	gr = getgrgid(ent->gid);
-	if(errno)
-		eprintf("getgrgid %d:", ent->gid);
-	else if(!gr)
-		eprintf("getgrgid %d: no such group\n", ent->gid);
-
-	if(time(NULL) > ent->mtime + (180*24*60*60)) /* 6 months ago? */
-		fmt = "%b %d  %Y";
-	else
-		fmt = "%b %d %H:%M";
-
-	strftime(buf, sizeof buf, fmt, localtime(&ent->mtime));
-	printf("%s %2ld %-4s %-5s %6lu %s %s", mode, (long)ent->nlink, pw->pw_name,
-	       gr->gr_name, (unsigned long)ent->size, buf, ent->name);
-	if(S_ISLNK(ent->mode)) {
-		if((len = readlink(ent->name, buf, sizeof buf)) == -1)
-			eprintf("readlink %s:", ent->name);
-		buf[len] = '\0';
-		printf(" -> %s", buf);
+	n = scandir (path, &es, flags & aFlag ? 0 : noDot, flags & tFlag ? comparMTime : comparName);
+	if (n < 0) {
+		if (errno == ENOTDIR) {
+			ls1 (fmt, flags, path);
+			return;
+		}
+		else eprintf ("ls: %s:", path);
 	}
-	putchar('\n');
+
+	if (flags & RFlag) ls1 (fmt, flags, path);
+	for (ii = 0; ii < n; ii++) {
+		char *subpath;
+		if (asprintf (&subpath, "%s/%s", path, es[ii] -> d_name) < 0) eprintf ("ls:");
+		(flags & RFlag ? ls : ls1) (fmt, flags, subpath);
+		free (subpath);
+	}
+}
+
+void main (int argc, char *argu[]) {
+	int flags = 0;
+	char *fmt;
+	int ii;
+	fmt = 0;
+	for (ii = 1; ii < argc; ii++) {
+		int jj;
+		if (argu[ii][0] != '-' || argu[ii][1] == 0) break;
+		if (argu[ii][1] == '-' && argu[ii][2] == 0) {
+			ii++;
+			break;
+		}
+		for (jj = 1; argu[ii][jj]; jj++) switch (argu[ii][jj]) {
+		case 'a':
+			flags |= aFlag;
+			break;
+		case 'd':
+			flags |= dFlag;
+			break;
+		case 'l':
+			flags |= lFlag;
+			break;
+		case 't':
+			flags |= tFlag;
+			break;
+		case 'f':
+			fmt = argu[++ii];
+			goto nextArgument;
+		case 'R':
+			flags |= RFlag;
+			break;
+		case '/':
+			flags |= slashFlag;
+			break;
+		}
+nextArgument:	;
+	}
+
+	if (ii < argc) for (; ii < argc; ii++) ls (fmt, flags, argu[ii]);
+	else ls (fmt, flags, ".");
 }

@@ -1,0 +1,51 @@
+.TH CUT 1
+.SH NAME
+cut \- select columns of file
+.SH SYNOPSIS
+.B cut -f
+.I ranges
+[
+.B -d
+.I delimiter
+]
+[
+.I file ...
+]
+.br
+.B cut -c
+.I ranges
+[
+.I file ...
+]
+.br
+.B cut -b
+.I ranges
+[
+.I file ...
+]
+.br
+.SH OPERATION
+Read from given files, or stdin if no files given, and for each line select
+.TP
+.B columns,
+with -f flag
+.TP
+.B characters,
+with -c flag
+.TP
+.B bytes,
+with -b flag
+.LP
+within given comma- or space-delimited ranges.
+.LP
+.br
+Each range is either a single decimal number, or of this form:
+.br
+.I x
+-
+.I y
+.br
+where x and y are decimal numbers, or empty.
+Empty x means first, and empty y means last column/character/byte on the line.
+.LP
+If -d option given, then the first character of its argument is the delimiter; otherwise it is tab.

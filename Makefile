@@ -19,49 +19,52 @@ LIB = \
 	util/recurse.o   \
 	util/rm.o
 
-SRC = \
-	basename.c \
-	cat.c      \
-	chmod.c    \
-	chown.c    \
-	cksum.c    \
-	cmp.c      \
-	cp.c       \
-	date.c     \
-	dirname.c  \
-	echo.c     \
-	false.c    \
-	fold.c     \
-	grep.c     \
-	head.c     \
-	kill.c     \
-	ln.c       \
-	ls.c       \
-	mc.c       \
-	mkdir.c    \
-	mkfifo.c   \
-	mv.c       \
-	nl.c       \
-	nohup.c    \
-	pwd.c      \
-	rm.c       \
-	sleep.c    \
-	sort.c     \
-	tail.c     \
-	tee.c      \
-	test.c     \
-	touch.c    \
-	true.c     \
-	tty.c      \
-	uname.c    \
-	uniq.c     \
-	seq.c      \
-	wc.c       \
-	yes.c
+MAN = \
+	basename.1 \
+	cat.1      \
+	chmod.1    \
+	chown.1    \
+	chroot.8   \
+	cksum.1    \
+	cmp.1      \
+	cp.1       \
+	cut.1      \
+	date.1     \
+	dirname.1  \
+	du.1       \
+	echo.1     \
+	false.1    \
+	fold.1     \
+	grep.1     \
+	head.1     \
+	kill.1     \
+	ln.1       \
+	ls.1       \
+	mc.1       \
+	mkdir.1    \
+	mkfifo.1   \
+	mv.1       \
+	nl.1       \
+	nohup.1    \
+	pwd.1      \
+	rm.1       \
+	sleep.1    \
+	sort.1     \
+	tail.1     \
+	tee.1      \
+	test.1     \
+	touch.1    \
+	true.1     \
+	tty.1      \
+	uname.1    \
+	uniq.1     \
+	seq.1      \
+	wc.1       \
+	yes.1
 
-OBJ = $(SRC:.c=.o) $(LIB)
-BIN = $(SRC:.c=)
-MAN = $(SRC:.c=.1)
+SRC = $(MAN:S/.1/.c/:S/.8/.c/)
+OBJ = $(SRC:S/.c/.o/) $(LIB)
+BIN = $(SRC:S/.c//)
 
 all: $(BIN)
 

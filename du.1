@@ -1,0 +1,29 @@
+.TH DU 1
+.SH NAME
+du \- compute filesystem usage
+.SH SYNOPSIS
+.B
+du
+[
+.B -a
+|
+.B -s
+]
+[
+.B -k
+]
+[
+.I file ...
+]
+.SH OPERATION
+Show fs space usage, in half-kB, of each given file and each directory below each given root, or . if none given.
+.SS FLAGS
+.TP
+.B a
+Show all files, not just directories
+.TP
+.B s
+Show only given files
+.TP
+.B k
+Show in kilobytes rather than half-kB

@@ -1,0 +1,24 @@
+.TH CHROOT 8
+.SH NAME
+chroot \- change root directory
+.SH SYNOPSIS
+.B chroot
+.I path
+[
+.I x
+[
+.I argument ...
+]
+]
+.SH OPERATION
+Change the root directory to
+.I path
+and start
+.I x
+with
+.I arguments
+, or
+.B $SHELL -i
+if no
+.I x
+given.

@@ -1,27 +1,65 @@
-.TH LS 1 sbase\-VERSION
+.TH LS 1
 .SH NAME
-ls \- list directory contents
+ls \- list files
 .SH SYNOPSIS
 .B ls
-.RB [ \-adlt ]
-.RI [ file ...]
-.SH DESCRIPTION
-.B ls
-lists each given file, and the contents of each given directory.  If no files
-are given the current directory is listed.
-.SH OPTIONS
+[
+.B -adlt/R
+]
+[
+.B -f
+.I format
+]
+[
+.I file ...
+]
+.SH OPERATION
+List files in the given directories and the other given files themselves, or . if no file given. If the -a flag not given, exclude files whose name\'s first character is \'.\'.
+.SS FLAGS
 .TP
-.B \-a
-shows hidden files (those beginning with '.').
+.B a
+Include dotfiles
 .TP
-.B \-d
-lists directories themselves, not their contents.
+.B d
+List directories themselves, rather than files in them
 .TP
-.B \-l
-lists detailed information about each file, including their type, permissions,
-links, owner, group, size, and modification time.
+.B l
+Long format; see below
 .TP
-.B \-t
-sorts files by modification time instead of by name.
-.SH SEE ALSO
-.IR stat (2)
+.B t
+Sort by modification time, rather than name
+.TP
+.B /
+Print full path name, rather than just last part
+.TP
+.B R
+List deeply
+.SS LONG FORMAT
+In long mode, ls prints more properties of each file, which are determined by the format, thus:
+.TP
+.B %%, %n, %t
+Literal \'%\', newline, tab
+.TP
+.B %d
+Device number
+.TP
+.B %i
+Inode number
+.TP
+.B %p
+Unix mode
+.TP
+.B %l
+Number of links
+.TP
+.B %o, %g
+Owner uid, gid
+.TP
+.B %m
+Modification time, seconds since epoch
+.TP
+.B %z
+File size, bytes
+.TP
+.B %N
+File name; full path if -/ flag given
