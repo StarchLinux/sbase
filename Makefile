@@ -90,17 +90,17 @@ install: all
 	@echo installing executables to $(DESTDIR)$(PREFIX)/bin
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
 	@cp -f $(BIN) $(DESTDIR)$(PREFIX)/bin
-	@cd $(DESTDIR)$(PREFIX)/bin && chmod 755 $(BIN)
+	@(cd $(DESTDIR)$(PREFIX)/bin && chmod 755 $(BIN))
 	@echo installing manual pages to $(DESTDIR)$(MANPREFIX)/man1
 	@mkdir -p $(DESTDIR)$(MANPREFIX)/man1
 	@cp -f $(MAN) $(DESTDIR)$(MANPREFIX)/man1
-	@cd $(DESTDIR)$(MANPREFIX)/man1 && chmod 644 $(MAN)
+	@(cd $(DESTDIR)$(MANPREFIX)/man1 && chmod 644 $(MAN))
 
 uninstall:
 	@echo removing executables from $(DESTDIR)$(PREFIX)/bin
-	@cd $(DESTDIR)$(PREFIX)/bin && rm -f $(BIN)
+	@(cd $(DESTDIR)$(PREFIX)/bin && rm -f $(BIN))
 	@echo removing manual pages from $(DESTDIR)$(MANPREFIX)/man1
-	@cd $(DESTDIR)$(MANPREFIX)/man1 && rm -f $(MAN)
+	@(cd $(DESTDIR)$(MANPREFIX)/man1 && rm -f $(MAN))
 
 dist: clean
 	@echo creating dist tarball
