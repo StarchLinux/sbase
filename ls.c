@@ -129,7 +129,7 @@ void ls (char *fmt, int flags, char *path) {
 	}
 }
 
-void main (int argc, char *argu[]) {
+int main (int argc, char *argu[]) {
 	int flags = 0;
 	char *fmt;
 	int ii;
@@ -169,4 +169,6 @@ nextArgument:	;
 
 	if (ii < argc) for (; ii < argc; ii++) ls (fmt, flags, argu[ii]);
 	else ls (fmt, flags, ".");
+	
+	return 0;
 }

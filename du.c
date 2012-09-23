@@ -33,7 +33,7 @@ int du (int top, int bs, int flags, char *path) {
 	return s.st_size;
 }
 															
-void main (int argc, char *argu[]) {
+int main (int argc, char *argu[]) {
 	int flags = 0;
 	int bs = 512;
 	int ii;
@@ -59,4 +59,6 @@ void main (int argc, char *argu[]) {
 	
 	if (ii < argc) for (; ii < argc; ii++) du (1, bs, flags, argu[ii]);
 	else du (1, bs, flags, ".");
+	
+	return 0;
 }
