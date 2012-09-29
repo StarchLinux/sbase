@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include "util.h"
@@ -14,14 +16,24 @@ int notAllDots (struct dirent *e) {
 	return 0;
 }
 
+int grief = 0;
+
 int du (int top, int bs, int flags, char *path) {
 	struct stat s;
 	struct dirent **es;
-	if (lstat (path, &s) < 0) eprintf ("du: %s:", path);
+	if (lstat (path, &s) < 0) {
+		fprintf (stderr, "du: %s: %s\n", path, strerror (errno));
+		grief = 1;
+		return 0;
+	}
 	if (s.st_mode & S_IFDIR) {
 		int ii, n;
 		n = scandir (path, &es, notAllDots, 0);
-		if (n < 0) eprintf ("du: %s:", path);
+		if (n < 0) {
+			fprintf (stderr, "du: %s: %s\n", path, strerror (errno));
+			grief = 1;
+		}
+		else
 		for (ii = 0; ii < n; ii++) {
 			char *subpath;
 			if (asprintf (&subpath, "%s/%s", path, es[ii] -> d_name) < 0) eprintf ("du:");
@@ -60,5 +72,5 @@ int main (int argc, char *argu[]) {
 	if (ii < argc) for (; ii < argc; ii++) du (1, bs, flags, argu[ii]);
 	else du (1, bs, flags, ".");
 	
-	return 0;
+	return grief;
 }
