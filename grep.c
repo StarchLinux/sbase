@@ -18,6 +18,8 @@ static bool many;
 static bool match = false;
 static char mode = 0;
 
+static char delim = '\n';
+
 int
 main(int argc, char *argv[])
 {
@@ -40,6 +42,9 @@ main(int argc, char *argv[])
 		break;
 	case 'v':
 		vflag = true;
+		break;
+	case 'z':
+		delim = '\0';
 		break;
 	default:
 		usage();
@@ -73,7 +78,7 @@ grep(FILE *fp, const char *str, regex_t *preg)
 	long n, c = 0;
 	size_t size = 0, len;
 
-	for(n = 1; afgets(&buf, &size, fp); n++) {
+	for(n = 1; getdelim(&buf, &size, delim, fp) >= 0; n++) {
 		if(buf[(len = strlen(buf))-1] == '\n')
 			buf[--len] = '\0';
 		if(regexec(preg, buf, 0, NULL, 0) ^ vflag)
@@ -92,7 +97,7 @@ grep(FILE *fp, const char *str, regex_t *preg)
 				printf("%s:", str);
 			if(mode == 'n')
 				printf("%ld:", n);
-			printf("%s\n", buf);
+			printf("%s%c", buf, delim);
 			break;
 		}
 		match = true;
