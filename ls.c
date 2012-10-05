@@ -19,6 +19,24 @@ enum {
 	slashFlag = 32,
 };
 
+unsigned int parseXD (char *s, int l) {
+	int ii;
+	unsigned int n = 0;
+	for (ii = 0; ii < l; ii++) {
+		n *= 16;
+		if (s[ii] <= '9' && s[ii] >= '0') {
+			n += s[ii] - '0';
+			continue;
+		}
+		if (s[ii] & 0xDF <= 'Z' && s[ii] & 0xDF >= 'A') {
+			n += s[ii] - 'A';
+			continue;
+		}
+		eprintf ("ls: no parse: %s\n", s);
+	}
+	return n;
+}
+
 void ls1 (char *fmt, int flags, char *path) {
 	struct stat s;
 	if (lstat (path, &s) < 0) eprintf ("ls: %s:", path);
@@ -71,6 +89,10 @@ void ls1 (char *fmt, int flags, char *path) {
 				break;
 			case 'm':
 				printf ("%*d", w ? w : 20, s.st_mtime);
+				break;
+			case 'x':
+				printf ("%c", parseXD (++fmt, 4));
+				fmt += 3;
 				break;
 			case 'z':
 				printf ("%*d", w ? w : 16, s.st_size);
