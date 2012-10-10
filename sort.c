@@ -12,6 +12,8 @@ static int linecmp(const char **, const char **);
 static bool rflag = false;
 static bool uflag = false;
 
+static char delim = '\n';
+
 static struct linebuf linebuf = EMPTY_LINEBUF;
 
 int
@@ -21,7 +23,7 @@ main(int argc, char *argv[])
 	long i;
 	FILE *fp;
 
-	while((c = getopt(argc, argv, "ru")) != -1)
+	while((c = getopt(argc, argv, "ruz")) != -1)
 		switch(c) {
 		case 'r':
 			rflag = true;
@@ -29,15 +31,18 @@ main(int argc, char *argv[])
 		case 'u':
 			uflag = true;
 			break;
+		case 'z':
+			delim = '\0';
+			break;
 		default:
 			exit(2);
 		}
 	if(optind == argc)
-		getlines(stdin, &linebuf);
+		getdelims(stdin, &linebuf, delim);
 	else for(; optind < argc; optind++) {
 		if(!(fp = fopen(argv[optind], "r")))
 			eprintf("fopen %s:", argv[optind]);
-		getlines(fp, &linebuf);
+		getdelims(fp, &linebuf, delim);
 		fclose(fp);
 	}
 	qsort(linebuf.lines, linebuf.nlines, sizeof *linebuf.lines, (int (*)(const void *, const void *))linecmp);
