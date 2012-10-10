@@ -7,6 +7,7 @@ struct linebuf {
 };
 #define EMPTY_LINEBUF {NULL, 0, 0,}
 void getlines(FILE *, struct linebuf *);
+void getdelims(FILE *, struct linebuf *, int delim);
 
 char *afgets(char **, size_t *, FILE *);
 void concat(FILE *, const char *, FILE *, const char *);
