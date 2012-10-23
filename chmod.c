@@ -18,8 +18,9 @@ main(int argc, char *argv[])
 {
 	char c;
 
-	while((c = getopt(argc, argv, "r")) != -1)
+	while((c = getopt(argc, argv, "Rr")) != -1)
 		switch(c) {
+		case 'R':
 		case 'r':
 			rflag = true;
 			break;

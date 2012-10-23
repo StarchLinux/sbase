@@ -12,8 +12,9 @@ main(int argc, char *argv[])
 	struct stat st;
 	char c;
 	
-	while((c = getopt(argc, argv, "r")) != -1)
+	while((c = getopt(argc, argv, "Rr")) != -1)
 		switch(c) {
+		case 'R':
 		case 'r':
 			cp_rflag = true;
 			break;
