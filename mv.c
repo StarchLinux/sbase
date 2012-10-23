@@ -14,7 +14,7 @@ main(int argc, char *argv[])
 {
 	struct stat st;
 	
-	if(getopt(argc, argv, "") != -1)
+	if(getopt(argc, argv, "f") != -1)
 		exit(EXIT_FAILURE);
 	if(argc > 3 && !(stat(argv[argc-1], &st) == 0 && S_ISDIR(st.st_mode)))
 		eprintf("%s: not a directory\n", argv[argc-1]);
