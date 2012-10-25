@@ -2,7 +2,7 @@
 VERSION = 0.0
 
 # paths
-PREFIX = /usr/local
+PREFIX = 
 MANPREFIX = $(PREFIX)/share/man
 
 #CC = gcc
