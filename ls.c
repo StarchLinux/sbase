@@ -119,7 +119,7 @@ int comparMTime (const struct dirent **e, const struct dirent **f) {
 	struct stat s, t;
 	if (lstat ((*e) -> d_name, &s) < 0) eprintf ("ls: %s:", (*e) -> d_name);
 	if (lstat ((*f) -> d_name, &t) < 0) eprintf ("ls: %s:", (*f) -> d_name);
-	return ((int)(s.st_mtime - t.st_mtime));
+	return ((int)(t.st_mtime - s.st_mtime));
 }
 
 int comparName (const struct dirent **e, const struct dirent **f) {
