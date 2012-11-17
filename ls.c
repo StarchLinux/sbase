@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <utf.h>
 #include <dirent.h>
@@ -115,14 +116,22 @@ int noDot (const struct dirent *e) {
 	return (e -> d_name[0] != '.');
 }
 
-int comparMTime (const struct dirent **e, const struct dirent **f) {
+int comparMTime (const char *x, const char *y) {
 	struct stat s, t;
-	if (lstat ((*e) -> d_name, &s) < 0) eprintf ("ls: %s:", (*e) -> d_name);
-	if (lstat ((*f) -> d_name, &t) < 0) eprintf ("ls: %s:", (*f) -> d_name);
+	if (lstat (x, &s) < 0) eprintf ("ls: %s:", x);
+	if (lstat (y, &t) < 0) eprintf ("ls: %s:", y);
 	return ((int)(t.st_mtime - s.st_mtime));
 }
 
-int comparName (const struct dirent **e, const struct dirent **f) {
+int comparPMTime (const char **p, const char **q) {
+	return comparMTime (*p, *q);
+}
+
+int cdeMTime (const struct dirent **e, const struct dirent **f) {
+	return comparMTime ((*e) -> d_name, (*f) -> d_name);
+}
+
+int cdeName (const struct dirent **e, const struct dirent **f) {
 	return (strcmp ((*e) -> d_name, (*f) -> d_name));
 }
 
@@ -133,7 +142,7 @@ void ls (char *fmt, int flags, char *path) {
 		ls1 (fmt, flags, path);
 		return;
 	}
-	n = scandir (path, &es, flags & aFlag ? 0 : noDot, flags & tFlag ? comparMTime : comparName);
+	n = scandir (path, &es, flags & aFlag ? 0 : noDot, flags & tFlag ? cdeMTime : cdeName);
 	if (n < 0) {
 		if (errno == ENOTDIR) {
 			ls1 (fmt, flags, path);
@@ -149,6 +158,12 @@ void ls (char *fmt, int flags, char *path) {
 		(flags & RFlag ? ls : ls1) (fmt, flags, subpath);
 		free (subpath);
 	}
+}
+
+void lsn (char *fmt, int flags, char *paths[], int n) {
+	int ii;
+	if (flags & tFlag) qsort (paths, n, sizeof (char *), comparPMTime);
+	for (ii = 0; ii < n; ii++) ls (fmt, flags, paths[ii]);
 }
 
 int main (int argc, char *argu[]) {
@@ -189,7 +204,7 @@ int main (int argc, char *argu[]) {
 nextArgument:	;
 	}
 
-	if (ii < argc) for (; ii < argc; ii++) ls (fmt, flags, argu[ii]);
+	if (ii < argc) lsn (fmt, flags, argu + ii, argc - ii);
 	else ls (fmt, flags, ".");
 	
 	return 0;
