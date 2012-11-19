@@ -42,6 +42,7 @@ main(int argc, char *argv[])
 	if(optind == argc)
 		uniq(stdin, "<stdin>");
 	else if(optind == argc - 1) {
+		if(strcmp(argv[optind], "-") == 0) argv[optind] = "/dev/stdin";
 		if(!(fp = fopen(argv[optind], "r")))
 			eprintf("fopen %s:", argv[optind]);
 		uniq(fp, argv[optind]);

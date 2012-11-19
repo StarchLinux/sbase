@@ -63,6 +63,7 @@ main(int argc, char *argv[])
 	if(argc == 1)
 		grep(stdin, "<stdin>", &preg);
 	else for(i = 1; i < argc; i++) {
+		if(strcmp(argv[i], "-") == 0) argv[i] = "/dev/stdin";
 		if(!(fp = fopen(argv[i], "r")))
 			enprintf(Error, "fopen %s:", argv[i]);
 		grep(fp, argv[i], &preg);

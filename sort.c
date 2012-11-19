@@ -40,6 +40,7 @@ main(int argc, char *argv[])
 	if(optind == argc)
 		getdelims(stdin, &linebuf, delim);
 	else for(; optind < argc; optind++) {
+		if(strcmp(argv[optind], "-") == 0) argv[optind] = "/dev/stdin";
 		if(!(fp = fopen(argv[optind], "r")))
 			eprintf("fopen %s:", argv[optind]);
 		getdelims(fp, &linebuf, delim);

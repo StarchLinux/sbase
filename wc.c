@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "util.h"
 
@@ -41,6 +42,7 @@ main(int argc, char *argv[])
 	if(optind == argc)
 		wc(stdin, NULL);
 	else for(; optind < argc; optind++) {
+		if(strcmp(argv[optind], "-") == 0) argv[optind] = "/dev/stdin";
 		if(!(fp = fopen(argv[optind], "r")))
 			eprintf("fopen %s:", argv[optind]);
 		wc(fp, argv[optind]);

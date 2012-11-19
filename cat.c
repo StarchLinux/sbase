@@ -1,6 +1,7 @@
 /* See LICENSE file for copyright and license details. */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "text.h"
 #include "util.h"
@@ -19,6 +20,7 @@ main(int argc, char *argv[])
 	if(argc == 0)
 		concat(stdin, "<stdin>", stdout, "<stdout>");
 	else for(i = 0; i < argc; i++) {
+		if(strcmp(argv[i], "-") == 0) argv[i] = "/dev/stdin";
 		if(!(fp = fopen(argv[i], "r")))
 			eprintf("fopen %s:", argv[i]);
 		concat(fp, argv[i], stdout, "<stdout>");

@@ -30,6 +30,7 @@ main(int argc, char *argv[])
 	if(optind == argc)
 		tail(stdin, "<stdin>", n);
 	else if(optind == argc-1) {
+		if(strcmp(argv[optind], "-") == 0) argv[optind] = "/dev/stdin";
 		if(!(fp = fopen(argv[optind], "r")))
 			eprintf("fopen %s:", argv[optind]);
 		tail(fp, argv[optind], n);

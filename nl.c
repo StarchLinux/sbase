@@ -41,6 +41,7 @@ main(int argc, char *argv[])
 	if(optind == argc)
 		nl(stdin);
 	else for(; optind < argc; optind++) {
+		if(strcmp(argv[optind], "-") == 0) argv[optind] = "/dev/stdin";
 		if(!(fp = fopen(argv[optind], "r")))
 			eprintf("fopen %s:", argv[optind]);
 		nl(fp);
