@@ -13,10 +13,15 @@ int
 main(int argc, char *argv[])
 {
 	struct stat st;
+	char c;
 	
-	if(getopt(argc, argv, "f") != -1)
-		exit(EXIT_FAILURE);
-	if(argc > 3 && !(stat(argv[argc-1], &st) == 0 && S_ISDIR(st.st_mode)))
+	while((c = getopt(argc, argv, "f")) != -1) switch (c) {
+		case 'f':
+			break;
+		default:
+			exit(EXIT_FAILURE);
+	}
+	if(argc - optind > 3 && !(stat(argv[argc-1], &st) == 0 && S_ISDIR(st.st_mode)))
 		eprintf("%s: not a directory\n", argv[argc-1]);
 	enmasse(argc - optind, &argv[optind], mv);
 	return EXIT_SUCCESS;
