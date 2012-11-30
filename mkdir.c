@@ -8,16 +8,20 @@
 #include <sys/stat.h>
 #include "util.h"
 
-static void mkdirp(char *);
+static void mkdirp(char *, int);
 
 int
 main(int argc, char *argv[])
 {
 	bool pflag = false;
 	char c;
+	int mode = S_IRWXU | S_IRWXG | S_IRWXO;
 
-	while((c = getopt(argc, argv, "p")) != -1)
+	while((c = getopt(argc, argv, "m:p")) != -1)
 		switch(c) {
+		case 'm':
+			mode = strtoul (optarg, 0, 8);
+			break;
 		case 'p':
 			pflag = true;
 			break;
@@ -26,21 +30,21 @@ main(int argc, char *argv[])
 		}
 	for(; optind < argc; optind++)
 		if(pflag)
-			mkdirp(argv[optind]);
-		else if(mkdir(argv[optind], S_IRWXU|S_IRWXG|S_IRWXO) == -1)
+			mkdirp(argv[optind], mode);
+		else if(mkdir(argv[optind], mode) == -1)
 			eprintf("mkdir %s:", argv[optind]);
 	return EXIT_SUCCESS;
 }
 
 void
-mkdirp(char *path)
+mkdirp(char *path, int mode)
 {
 	char *p = path;
 
 	do {
 		if((p = strchr(&p[1], '/')))
 			*p = '\0';
-		if(mkdir(path, S_IRWXU|S_IRWXG|S_IRWXO) == -1 && errno != EEXIST)
+		if(mkdir(path, mode) == -1 && errno != EEXIST)
 			eprintf("mkdir %s:", path);
 		if(p)
 			*p = '/';
