@@ -17,7 +17,7 @@ enum {
 	lFlag =  4,
 	tFlag =  8,
 	RFlag = 16,
-	slashFlag = 32,
+	pFlag = 32,
 };
 
 unsigned int parseXD (char *s, int l) {
@@ -99,7 +99,7 @@ void ls1 (char *fmt, int flags, char *path) {
 				printf ("%*d", w ? w : 16, s.st_size);
 				break;
 			case 'N':
-				p = flags & slashFlag ? 0 : utfrrune (path, L'/');
+				p = flags & pFlag ? utfrrune (path, L'/') : 0;
 				fputs (p ? p + runelen (L'/') : path, stdout);
 				break;
 			default:
@@ -197,8 +197,8 @@ int main (int argc, char *argu[]) {
 		case 'R':
 			flags |= RFlag;
 			break;
-		case '/':
-			flags |= slashFlag;
+		case 'p':
+			flags |= pFlag;
 			break;
 		}
 nextArgument:	;
