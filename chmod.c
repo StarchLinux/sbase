@@ -18,16 +18,20 @@ main(int argc, char *argv[])
 {
 	char c;
 
-	while((c = getopt(argc, argv, "Rr")) != -1)
+	while((c = getopt(argc, argv, "Rrwxs")) != -1)
 		switch(c) {
 		case 'R':
-		case 'r':
 			rflag = true;
 			break;
+		case 'r':
+		case 'w':
+		case 'x':
+			optind--;
+			goto x;
 		default:
 			exit(EXIT_FAILURE);
 		}
-	if(optind == argc)
+x:	if(optind == argc)
 		eprintf("usage: %s [-r] mode [file...]\n", argv[0]);
 
 	parsemode(argv[optind++]);
