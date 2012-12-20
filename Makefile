@@ -73,9 +73,11 @@ $(BIN): util.a
 cat.o fold.o grep.o nl.o sort.o tail.o uniq.o: text.h
 cp.o mv.o rm.o: fs.h
 
-.o:
+.for x in $(BIN)
+$x: $x.o
 	@echo LD $@
-	@$(LD) -o $@ $< util.a $(LDFLAGS)
+	@$(LD) -o $@ $x.o util.a $(LDFLAGS)
+.endfor
 
 .c.o:
 	@echo CC $<
