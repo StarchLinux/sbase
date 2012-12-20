@@ -89,11 +89,11 @@ util.a: $(LIB)
 install: all
 	@echo installing executables to $(DESTDIR)$(PREFIX)/bin
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
-	@cp -f $(BIN) $(DESTDIR)$(PREFIX)/bin
+	@cp $(BIN) $(DESTDIR)$(PREFIX)/bin
 	@(cd $(DESTDIR)$(PREFIX)/bin && chmod 755 $(BIN))
 	@echo installing manual pages to $(DESTDIR)$(MANPREFIX)/man1
 	@mkdir -p $(DESTDIR)$(MANPREFIX)/man1
-	@cp -f $(MAN) $(DESTDIR)$(MANPREFIX)/man1
+	@cp $(MAN) $(DESTDIR)$(MANPREFIX)/man1
 	@(cd $(DESTDIR)$(MANPREFIX)/man1 && chmod 644 $(MAN))
 
 uninstall:
