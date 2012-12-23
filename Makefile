@@ -52,7 +52,6 @@ MAN = \
 	sort.1     \
 	tail.1     \
 	tee.1      \
-	test.1     \
 	touch.1    \
 	true.1     \
 	tty.1      \
