@@ -3,7 +3,7 @@ VERSION = 0.0
 
 # paths
 PREFIX = 
-MANPREFIX = $(PREFIX)/share/man
+MANPREFIX = $(PREFIX)/doc/man
 
 #CC = gcc
 #CC = musl-gcc
