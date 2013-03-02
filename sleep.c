@@ -1,20 +1,38 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdlib.h>
-#include <unistd.h>
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+#include <u.h>
+#include <libc.h>
 
-int
+void
 main(int argc, char *argv[])
 {
-	unsigned int seconds;
+	long n;
+	char *p, *q;
 
-	if(getopt(argc, argv, "") != -1)
-		exit(EXIT_FAILURE);
-	if(optind != argc-1)
-		eprintf("usage: %s seconds\n", argv[0]);
-
-	seconds = estrtol(argv[optind], 0);
-	while((seconds = sleep(seconds)) > 0)
-		;
-	return EXIT_SUCCESS;
+	if(argc>1){
+		for(n = strtol(argv[1], &p, 0); n > 0; n--)
+			sleep(1000);
+		/*
+		 * no floating point because it is useful to
+		 * be able to run sleep when bootstrapping
+		 * a machine.
+		 */
+		if(*p++ == '.' && (n = strtol(p, &q, 10)) > 0){
+			switch(q - p){
+			case 0:
+				break;
+			case 1:
+				n *= 100;
+				break;
+			case 2:
+				n *= 10;
+				break;
+			default:
+				p[3] = 0;
+				n = strtol(p, 0, 10);
+				break;
+			}
+			sleep(n);
+		}
+	}
+	exits(0);
 }
