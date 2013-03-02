@@ -1,39 +1,42 @@
 /* See LICENSE file for copyright and license details. */
-#include <libgen.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "util.h"
-
-static void usage(void);
-
-int
-main(int argc, char *argv[])
-{
-	char *s;
-	size_t n;
-
-	ARGBEGIN {
-	default:
-		usage();
-	} ARGEND;
-
-	if(argc < 1)
-		usage();
-
-	s = basename(argv[0]);
-	if(argc == 2 && argv[1]) {
-		n = strlen(s) - strlen(argv[1]);
-		if(!strcmp(&s[n], argv[1]))
-			s[n] = '\0';
-	}
-	puts(s);
-
-	return EXIT_SUCCESS;
-}
+#include <u.h>
+#include <libc.h>
 
 void
-usage(void)
+main(int argc, char *argv[])
 {
-	eprintf("usage: %s name [suffix]\n", argv0);
+	char *pr;
+	int n, dflag;
+
+	dflag = 0;
+	if(argc>1 && strcmp(argv[1], "-d") == 0){
+		--argc;
+		++argv;
+		dflag = 1;
+	}
+	if(argc < 2 || argc > 3){
+		fprint(2, "usage: basename [-d] string [suffix]\n");
+		exits("usage");
+	}
+	pr = utfrrune(argv[1], '/');
+	if(dflag){
+		if(pr){
+			*pr = 0;
+			print("%s\n", argv[1]);
+			exits(0);
+		}
+		print(".\n");
+		exits(0);
+	}
+	if(pr)
+		pr++;
+	else
+		pr = argv[1];
+	if(argc==3){
+		n = strlen(pr)-strlen(argv[2]);
+		if(n >= 0 && !strcmp(pr+n, argv[2]))
+			pr[n] = 0;
+	}
+	print("%s\n", pr);
+	exits(0);
 }
