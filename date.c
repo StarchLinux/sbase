@@ -1,39 +1,31 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+#include <u.h>
+#include <libc.h>
 
-int
+int uflg, nflg;
+
+void
 main(int argc, char *argv[])
 {
-	char buf[BUFSIZ], c;
-	char *fmt = "%c";
-	struct tm *now = NULL;
-	struct tm *(*tztime)(const time_t *) = localtime;
-	const char *tz = "local";
-	time_t t;
+	ulong now;
 
-	t = time(NULL);
-	while((c = getopt(argc, argv, "d:u")) != -1)
-		switch(c) {
-		case 'd':
-			t = estrtol(optarg, 0);
-			break;
-		case 'u':
-			tztime = gmtime;
-			tz = "gm";
-			break;
-		default:
-			exit(EXIT_FAILURE);
-		}
-	if(optind < argc && argv[optind][0] == '+')
-		fmt = &argv[optind][1];
-	if(!(now = tztime(&t)))
-		eprintf("%stime failed\n", tz);
+	ARGBEGIN{
+	case 'n':	nflg = 1; break;
+	case 'u':	uflg = 1; break;
+	default:	fprint(2, "usage: date [-un] [seconds]\n"); exits("usage");
+	}ARGEND
 
-	strftime(buf, sizeof buf, fmt, now);
-	puts(buf);
-	return EXIT_SUCCESS;
+	if(argc == 1)
+		now = strtoul(*argv, 0, 0);
+	else
+		now = time(0);
+
+	if(nflg)
+		print("%ld\n", now);
+	else if(uflg)
+		print("%s", asctime(gmtime(now)));
+	else
+		print("%s", ctime(now));
+	
+	exits(0);
 }
