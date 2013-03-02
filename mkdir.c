@@ -1,52 +1,81 @@
-/* See LICENSE file for copyright and license details. */
-#include <errno.h>
-#include <fcntl.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+#include <u.h>
+#include <libc.h>
 
-static void mkdirp(char *, int);
+char *e;
+ulong mode = 0777L;
+
+void
+usage(void)
+{
+	fprint(2, "usage: mkdir [-p] [-m mode] dir...\n");
+	exits("usage");
+}
 
 int
-main(int argc, char *argv[])
+makedir(char *s)
 {
-	bool pflag = false;
-	char c;
-	int mode = S_IRWXU | S_IRWXG | S_IRWXO;
+	int f;
 
-	while((c = getopt(argc, argv, "m:p")) != -1)
-		switch(c) {
-		case 'm':
-			mode = strtoul (optarg, 0, 8);
-			break;
-		case 'p':
-			pflag = true;
-			break;
-		default:
-			exit(EXIT_FAILURE);
-		}
-	for(; optind < argc; optind++)
-		if(pflag)
-			mkdirp(argv[optind], mode);
-		else if(mkdir(argv[optind], mode) == -1)
-			eprintf("mkdir %s:", argv[optind]);
-	return EXIT_SUCCESS;
+	if(access(s, AEXIST) == 0){
+		fprint(2, "mkdir: %s already exists\n", s);
+		e = "error";
+		return -1;
+	}
+	f = create(s, OREAD, DMDIR | mode);
+	if(f < 0){
+		fprint(2, "mkdir: can't create %s: %r\n", s);
+		e = "error";
+		return -1;
+	}
+	close(f);
+	return 0;
 }
 
 void
-mkdirp(char *path, int mode)
+mkdirp(char *s)
 {
-	char *p = path;
+	char *p;
 
-	do {
-		if((p = strchr(&p[1], '/')))
-			*p = '\0';
-		if(mkdir(path, mode) == -1 && errno != EEXIST)
-			eprintf("mkdir %s:", path);
-		if(p)
-			*p = '/';
-	} while(p);
+	for(p=strchr(s+1, '/'); p; p=strchr(p+1, '/')){
+		*p = 0;
+		if(access(s, AEXIST) != 0 && makedir(s) < 0)
+			return;
+		*p = '/';
+	}
+	if(access(s, AEXIST) != 0)
+		makedir(s);
+}
+
+
+void
+main(int argc, char *argv[])
+{
+	int i, pflag;
+	char *m;
+
+	pflag = 0;
+	ARGBEGIN{
+	default:
+		usage();
+	case 'm':
+		m = ARGF();
+		if(m == nil)
+			usage();
+		mode = strtoul(m, &m, 8);
+		if(mode > 0777)
+			usage();
+		break;
+	case 'p':
+		pflag = 1;
+		break;
+	}ARGEND
+
+	for(i=0; i<argc; i++){
+		if(pflag)
+			mkdirp(argv[i]);
+		else
+			makedir(argv[i]);
+	}
+	exits(e);
 }
