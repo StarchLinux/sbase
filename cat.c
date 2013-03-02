@@ -1,30 +1,36 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include "text.h"
-#include "util.h"
-
-int
+/* Licensed under Lucent Public License Version 1.02 */
+#include <u.h>
+#include <libc.h>
+ 
+void
+cat(int f, char *s)
+{
+	char buf[8192];
+	long n;
+ 
+	while((n=read(f, buf, (long)sizeof buf))>0)
+		if(write(1, buf, n)!=n)
+			sysfatal("write error copying %s: %r", s);
+	if(n < 0)
+		sysfatal("error reading %s: %r", s);
+}
+ 
+void
 main(int argc, char *argv[])
 {
-	FILE *fp;
-	int i;
-
-	ARGBEGIN {
-	default:
-		eprintf("usage: %s [files...]\n", argv0);
-	} ARGEND;
-
-	if(argc == 0)
-		concat(stdin, "<stdin>", stdout, "<stdout>");
-	else for(i = 0; i < argc; i++) {
-		if(strcmp(argv[i], "-") == 0) argv[i] = "/dev/stdin";
-		if(!(fp = fopen(argv[i], "r")))
-			eprintf("fopen %s:", argv[i]);
-		concat(fp, argv[i], stdout, "<stdout>");
-		fclose(fp);
+	int f, i;
+ 
+	argv0 = "cat";
+	if(argc == 1)
+		cat(0, "<stdin>");
+	else for(i=1; i<argc; i++){
+		f = open(argv[i], OREAD);
+		if(f < 0)
+			sysfatal("can't open %s: %r", argv[i]);
+		else{
+			cat(f, argv[i]);
+			close(f);
+		}
 	}
-	return EXIT_SUCCESS;
+	exits(0);
 }
