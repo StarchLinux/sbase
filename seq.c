@@ -1,157 +1,103 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+#include <u.h>
+#include <libc.h>
 
-static int digitsleft(const char *);
-static int digitsright(const char *);
-static double estrtod(const char *);
-static bool validfmt(const char *);
+double	min = 1.0;
+double	max = 0.0;
+double	incr = 1.0;
+int	constant = 0;
+int	nsteps;
+char	*format;
 
-int
-main(int argc, char *argv[])
+void
+usage(void)
 {
-	const char *starts = "1", *steps = "1", *ends = "1", *sep = "\n";
-	bool wflag = false;
-	char c, ftmp[BUFSIZ], *fmt = ftmp;
-	double start, step, end, out, dir;
+	fprint(2, "usage: seq [-fformat] [-w] [first [incr]] last\n");
+	exits("usage");
+}
 
-	while((c = getopt(argc, argv, "f:s:w")) != -1)
-		switch(c) {
-		case 'f':
-			if(!validfmt(optarg))
-				eprintf("%s: invalid format\n", optarg);
-			fmt = optarg;
-			break;
-		case 's':
-			sep = optarg;
-			break;
-		case 'w':
-			wflag = true;
-			break;
-		}
+void
+buildfmt(void)
+{
+	char *dp;
+	int w, p, maxw, maxp;
+	static char fmt[16];
+	char buf[32];
+	double val;
 
-	switch(argc-optind) {
-	case 3:
-		starts = argv[optind++];
-		steps = argv[optind++];
-		ends = argv[optind++];
+	format = "%g\n";
+	if(!constant)
+		return;
+	maxw = 0;
+	maxp = 0;
+	for(val = min; val <= max; val += incr){
+		sprint(buf, "%g", val);
+		if(strchr(buf, 'e')!=0)
+			return;
+		dp = strchr(buf,'.');
+		w = dp==0? strlen(buf): dp-buf;
+		p = dp==0? 0: strlen(strchr(buf,'.')+1);
+		if(w>maxw)
+			maxw = w;
+		if(p>maxp)
+			maxp = p;
+	}
+	if(maxp > 0)
+		maxw += maxp+1;
+	sprint(fmt,"%%%d.%df\n", maxw, maxp);
+	format = fmt;
+}
+
+void
+main(int argc, char *argv[]){
+	int j, n;
+	char buf[256], ffmt[4096];
+	double val;
+
+	ARGBEGIN{
+	case 'w':
+		constant++;
 		break;
-	case 2:
-		starts = argv[optind++];
-		/* fallthrough */
-	case 1:
-		ends = argv[optind++];
+	case 'f':
+		format = EARGF(usage());
+		if(format[strlen(format)-1] != '\n'){
+			sprint(ffmt, "%s\n", format);
+			format = ffmt;
+		}
 		break;
 	default:
-		eprintf("usage: %s [-w] [-f fmt] [-s separator] [start [step]] end\n", argv[0]);
+		goto out;
+	}ARGEND
+    out:
+	if(argc<1 || argc>3)
+		usage();
+	max = atof(argv[argc-1]);
+	if(argc > 1)
+		min = atof(argv[0]);
+	if(argc > 2)
+		incr = atof(argv[1]);
+	if(incr == 0){
+		fprint(2, "seq: zero increment\n");
+		exits("zero increment");
 	}
-	start = estrtod(starts);
-	step  = estrtod(steps);
-	end   = estrtod(ends);
-
-	dir = (step > 0) ? 1.0 : -1.0;
-	if(step == 0 || start * dir > end * dir)
-		return EXIT_FAILURE;
-
-	if(fmt == ftmp) {
-		int right = MAX(digitsright(starts),
-		            MAX(digitsright(ends),
-		                digitsright(steps)));
-
-		if(wflag) {
-			int left = MAX(digitsleft(starts), digitsleft(ends));
-
-			snprintf(ftmp, sizeof ftmp, "%%0%d.%df", right+left+(right != 0), right);
+	if(!format)
+		buildfmt();
+	if(incr > 0){
+		for(val = min; val <= max; val += incr){
+			n = sprint(buf, format, val);
+			if(constant)
+				for(j=0; buf[j]==' '; j++)
+					buf[j] ='0';
+			write(1, buf, n);
 		}
-		else
-			snprintf(ftmp, sizeof ftmp, "%%.%df", right);
+	}else{
+		for(val = min; val >= max; val += incr){
+			n = sprint(buf, format, val);
+			if(constant)
+				for(j=0; buf[j]==' '; j++)
+					buf[j] ='0';
+			write(1, buf, n);
+		}
 	}
-	for(out = start; out * dir <= end * dir; out += step) {
-		if(out != start)
-			fputs(sep, stdout);
-		printf(fmt, out);
-	}
-	printf("\n");
-
-	return EXIT_SUCCESS;
-}
-
-int
-digitsleft(const char *d)
-{
-	char *exp;
-	int shift;
-
-	if(*d == '+')
-		d++;
-	exp = strpbrk(d, "eE");
-	shift = exp ? atoi(&exp[1]) : 0;
-
-	return MAX(0, strspn(d, "-0123456789")+shift);
-}
-
-int
-digitsright(const char *d)
-{
-	char *exp;
-	int shift, after;
-
-	exp = strpbrk(d, "eE");
-	shift = exp ? atoi(&exp[1]) : 0;
-	after = (d = strchr(d, '.')) ? strspn(&d[1], "0123456789") : 0;
-
-	return MAX(0, after-shift);
-}
-
-double
-estrtod(const char *s)
-{
-	char *end;
-	double d;
-
-	d = strtod(s, &end);
-	if(end == s || *end != '\0')
-		eprintf("%s: not a real number\n", s);
-	return d;
-}
-
-bool
-validfmt(const char *fmt)
-{
-	int occur = 0;
-
-literal:
-	while(*fmt)
-		if(*fmt++ == '%')
-			goto format;
-	return occur == 1;
-
-format:
-	if(*fmt == '%') {
-		fmt++;
-		goto literal;
-	}
-	fmt += strspn(fmt, "-+#0 '");
-	fmt += strspn(fmt, "0123456789");
-	if(*fmt == '.') {
-		fmt++;
-		fmt += strspn(fmt, "0123456789");
-	}
-	if(*fmt == 'L')
-		fmt++;
-
-	switch(*fmt) {
-	case 'f': case 'F':
-	case 'g': case 'G':
-	case 'e': case 'E':
-	case 'a': case 'A':
-		occur++;
-		goto literal;
-	default:
-		return false;
-	}
+	exits(0);
 }
