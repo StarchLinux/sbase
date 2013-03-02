@@ -1,62 +1,66 @@
-/* See LICENSE file for copyright and license details. */
-#include <errno.h>
-#include <fcntl.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
-#include <utime.h>
-#include <sys/stat.h>
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+#include <u.h>
+#include <libc.h>
 
-static void touch(const char *);
+int touch(int, char *);
+ulong now;
 
-static bool cflag = false;
-static time_t t;
-
-int
-main(int argc, char *argv[])
+void
+usage(void)
 {
-	char c;
-
-	t = time(NULL);
-	while((c = getopt(argc, argv, "ct:")) != -1)
-		switch(c) {
-		case 'c':
-			cflag = true;
-			break;
-		case 't':
-			t = estrtol(optarg, 0);
-			break;
-		default:
-			exit(EXIT_FAILURE);
-		}
-	for(; optind < argc; optind++)
-		touch(argv[optind]);
-	return EXIT_SUCCESS;
+	fprint(2, "usage: touch [-c] [-t time] files\n");
+	exits("usage");
 }
 
 void
-touch(const char *str)
+main(int argc, char **argv)
 {
-	int fd;
-	struct stat st;
-	struct utimbuf ut;
+	char *t, *s;
+	int nocreate = 0;
+	int status = 0;
 
-	if(stat(str, &st) == 0) {
-		ut.actime = st.st_atime;
-		ut.modtime = t;
-		if(utime(str, &ut) == -1)
-			eprintf("utime %s:", str);
-		return;
+	now = time(0);
+	ARGBEGIN{
+	case 't':
+		t = EARGF(usage());
+		now = strtoul(t, &s, 0);
+		if(s == t || *s != '\0')
+			usage();
+		break;
+	case 'c':
+		nocreate = 1;
+		break;
+	default:	
+		usage();
+	}ARGEND
+
+	if(!*argv)
+		usage();
+	while(*argv)
+		status += touch(nocreate, *argv++);
+	if(status)
+		exits("touch");
+	exits(0);
+}
+
+touch(int nocreate, char *name)
+{
+	Dir stbuff;
+	int fd;
+
+	nulldir(&stbuff);
+	stbuff.mtime = now;
+	if(dirwstat(name, &stbuff) >= 0)
+		return 0;
+	if(nocreate){
+		fprint(2, "touch: %s: cannot wstat: %r\n", name);
+		return 1;
 	}
-	else if(errno != ENOENT)
-		eprintf("stat %s:", str);
-	else if(cflag)
-		return;
-	if((fd = open(str, O_CREAT|O_EXCL,
-	              S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)) == -1)
-		eprintf("open %s:", str);
+	if((fd = create(name, OREAD|OEXCL, 0666)) < 0){
+		fprint(2, "touch: %s: cannot create: %r\n", name);
+		return 1;
+	}
+	dirfwstat(fd, &stbuff);
 	close(fd);
-	touch(str);
+	return 0;
 }
