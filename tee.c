@@ -1,42 +1,79 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+/*
+ * tee-- pipe fitting
+ */
+
+#include <u.h>
+#include <libc.h>
+
+int	uflag;
+int	aflag;
+int	*openf;
+
+char in[8192];
+
+int	intignore(void*, char*);
+
+void
+main(int argc, char **argv)
+{
+	int i;
+	int r, n;
+
+	ARGBEGIN {
+	case 'a':
+		aflag++;
+		break;
+
+	case 'i':
+		atnotify(intignore, 1);
+		break;
+
+	case 'u':
+		uflag++;
+		/* uflag is ignored and undocumented; it's a relic from Unix */
+		break;
+
+	default:
+		fprint(2, "usage: tee [-ai] [file ...]\n");
+		exits("usage");
+	} ARGEND
+
+	openf = malloc((1+argc)*sizeof(int));
+	if(openf == nil)
+		sysfatal("out of memory: %r");
+
+	n = 0;
+	while(*argv) {
+		if(aflag) {
+			openf[n] = open(argv[0], OWRITE);
+			if(openf[n] < 0)
+				openf[n] = create(argv[0], OWRITE, 0666);
+			seek(openf[n], 0L, 2);
+		} else
+			openf[n] = create(argv[0], OWRITE, 0666);
+		if(openf[n] < 0) {
+			fprint(2, "tee: cannot open %s: %r\n", argv[0]);
+		} else
+			n++;
+		argv++;
+	}
+	openf[n++] = 1;
+
+	for(;;) {
+		r = read(0, in, sizeof in);
+		if(r <= 0)
+			exits(nil);
+		for(i=0; i<n; i++)
+			write(openf[i], in, r);
+	}
+}
 
 int
-main(int argc, char *argv[])
+intignore(void *a, char *msg)
 {
-	bool aflag = false;
-	char buf[BUFSIZ], c;
-	int i, nfps = 1;
-	size_t n;
-	FILE **fps;
-
-	while((c = getopt(argc, argv, "a")) != -1)
-		switch(c) {
-		case 'a':
-			aflag = true;
-			break;
-		default:
-			exit(EXIT_FAILURE);
-		}
-	if(!(fps = malloc(sizeof *fps)))
-		eprintf("malloc:");
-	fps[nfps-1] = stdout;
-
-	for(; optind < argc; optind++) {
-		if(!(fps = realloc(fps, ++nfps * sizeof *fps)))
-			eprintf("realloc:");
-		if(!(fps[nfps-1] = fopen(argv[optind], aflag ? "a" : "w")))
-			eprintf("fopen %s:", argv[optind]);
-	}
-	while((n = fread(buf, 1, sizeof buf, stdin)) > 0)
-		for(i = 0; i < nfps; i++)
-			if(fwrite(buf, 1, n, fps[i]) != n)
-				eprintf("%s: write error:", buf);
-	if(ferror(stdin))
-		eprintf("<stdin>: read error:");
-	return EXIT_SUCCESS;
+	USED(a);
+	if(strcmp(msg, "interrupt") == 0)
+		return 1;
+	return 0;
 }
