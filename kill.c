@@ -1,78 +1,75 @@
-/* See LICENSE file for copyright and license details. */
-#include <signal.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <sys/wait.h>
-#include "util.h"
+#include <signal.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
-struct {
-	const char *name;
-	int sig;
-} sigs[] = {
-#define SIG(n) { #n, SIG##n }
-	SIG(ABRT), SIG(ALRM), SIG(BUS),  SIG(CHLD), SIG(CONT), SIG(FPE),  SIG(HUP),
-	SIG(ILL),  SIG(INT),  SIG(KILL), SIG(PIPE), SIG(QUIT), SIG(SEGV), SIG(STOP),
-	SIG(TERM), SIG(TSTP), SIG(TTIN), SIG(TTOU), SIG(USR1), SIG(USR2), SIG(URG),
-#undef SIG
+#define NSIG SIGUSR2
+
+char *signm[NSIG+1] = { 0,
+"SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGABRT", "SIGFPE", "SIGKILL", /* 1-7 */
+"SIGSEGV", "SIGPIPE", "SIGALRM", "SIGTERM", "SIGUR1", "SIGUSR2", /* 8-13 */
 };
 
-static void usage(void);
-
-int
-main(int argc, char *argv[])
+main(int argc, char **argv)
 {
-	bool lflag = false;
-	char c, *end;
-	int sig = SIGTERM;
-	pid_t pid;
-	size_t i;
+        int signo, pid, res;
+        int errlev;
 
-	while((c = getopt(argc, argv, "ls:")) != -1)
-		switch(c) {
-		case 'l':
-			lflag = true;
-			break;
-		case 's':
-			sig = strtol(optarg, &end, 0);
-			if(*end == '\0')
-				break;
-			for(i = 0; i < LEN(sigs); i++)
-				if(!strcasecmp(optarg, sigs[i].name)) {
-					sig = sigs[i].sig;
-					break;
-				}
-			if(i == LEN(sigs))
-				eprintf("%s: unknown signal\n", optarg);
-			break;
-		default:
-			usage();
-		}
-	if(optind < argc-1)
-		usage();
-
-	if(lflag) {
-		sig = (optind == argc) ? 0 : estrtol(argv[optind], 0);
-		if(sig > 128)
-			sig = WTERMSIG(sig);
-		for(i = 0; i < LEN(sigs); i++)
-			if(sigs[i].sig == sig || sig == 0)
-				putword(sigs[i].name);
-		putchar('\n');
-	}
-	else for(; optind < argc; optind++) {
-		pid = estrtol(argv[optind], 0);
-		if(kill(pid, sig) == -1)
-			eprintf("kill %d:", pid);
-	}
-	return EXIT_SUCCESS;
-}
-
-void
-usage(void)
-{
-	eprintf("usage: %s [-s signal] [pid...]\n"
-	        "       %s -l [signum]\n", argv0, argv0);
+        errlev = 0;
+        if (argc <= 1) {
+        usage:
+                fprintf(stderr, "usage: kill [ -sig ] pid ...\n");
+                fprintf(stderr, "for a list of signals: kill -l\n");
+                exit(2);
+        }
+        if (*argv[1] == '-') {
+                if (argv[1][1] == 'l') {
+                        int i = 0;
+                        for (signo = 1; signo <= NSIG; signo++)
+                                if (signm[signo]) {
+                                        printf("%s ", signm[signo]);
+                                        if (++i%8 == 0)
+                                                printf("\n");
+                                }
+                        if(i%8 !=0)
+                                printf("\n");
+                        exit(0);
+                } else if (isdigit(argv[1][1])) {
+                        signo = atoi(argv[1]+1);
+                        if (signo < 0 || signo > NSIG) {
+                                fprintf(stderr, "kill: %s: number out of range\n",
+                                    argv[1]);
+                                exit(1);
+                        }
+                } else {
+                        char *name = argv[1]+1;
+                        for (signo = 1; signo <= NSIG; signo++)
+                                if (signm[signo] && (
+                                    !strcmp(signm[signo], name)||
+                                    !strcmp(signm[signo]+3, name)))
+                                        goto foundsig;
+                        fprintf(stderr, "kill: %s: unknown signal; kill -l lists signals\n", name);
+                        exit(1);
+foundsig:
+                        ;
+                }
+                argc--;
+                argv++;
+        } else
+                signo = SIGTERM;
+        argv++;
+        while (argc > 1) {
+                if ((**argv<'0' || **argv>'9') && **argv!='-')
+                        goto usage;
+                res = kill(pid = atoi(*argv), signo);
+                if (res<0) {
+                        perror("kill");
+                }
+                argc--;
+                argv++;
+        }
+        return(errlev);
 }
