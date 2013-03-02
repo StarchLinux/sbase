@@ -1,27 +1,41 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+#include <u.h>
+#include <libc.h>
 
-int
+void
 main(int argc, char *argv[])
 {
-	bool nflag = false;
-	char c;
+	int nflag;
+	int i, len;
+	char *buf, *p;
 
-	while((c = getopt(argc, argv, "n")) != -1)
-		switch(c) {
-		case 'n':
-			nflag = true;
-			break;
-		default:
-			exit(EXIT_FAILURE);
-		}
-	for(; optind < argc; optind++)
-		putword(argv[optind]);
+	nflag = 0;
+	if(argc > 1 && strcmp(argv[1], "-n") == 0)
+		nflag = 1;
+
+	len = 1;
+	for(i = 1+nflag; i < argc; i++)
+		len += strlen(argv[i])+1;
+
+	buf = malloc(len);
+	if(buf == 0)
+		exits("no memory");
+
+	p = buf;
+	for(i = 1+nflag; i < argc; i++){
+		strcpy(p, argv[i]);
+		p += strlen(p);
+		if(i < argc-1)
+			*p++ = ' ';
+	}
+		
 	if(!nflag)
-		putchar('\n');
-	return EXIT_SUCCESS;
+		*p++ = '\n';
+
+	if(write(1, buf, p-buf) < 0){
+		fprint(2, "echo: write error: %r\n");
+		exits("write error");
+	}
+
+	exits((char *)0);
 }
