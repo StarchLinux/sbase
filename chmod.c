@@ -1,131 +1,110 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include "util.h"
+/* Licensed under Lucent Public License Version 1.02 */
+#include <u.h>
+#include <libc.h>
 
-static void chmodr(const char *);
-static void parsemode(const char *);
+#define U(x) (x<<6)
+#define G(x) (x<<3)
+#define O(x) (x)
+#define A(x) (U(x)|G(x)|O(x))
 
-static bool rflag = false;
-static char oper = '=';
-static mode_t mode = 0;
+#define DMRWE (DMREAD|DMWRITE|DMEXEC)
 
-int
+int parsemode(char *, ulong *, ulong *);
+
+void
 main(int argc, char *argv[])
 {
-	char c;
+        int i;
+        Dir *dir, ndir;
+        ulong mode, mask;
+        char *p;
 
-	while((c = getopt(argc, argv, "Rrwxs")) != -1)
-		switch(c) {
-		case 'R':
-			rflag = true;
-			break;
-		case 'r':
-		case 'w':
-		case 'x':
-			optind--;
-			goto x;
-		default:
-			exit(EXIT_FAILURE);
-		}
-x:	if(optind == argc)
-		eprintf("usage: %s [-r] mode [file...]\n", argv[0]);
-
-	parsemode(argv[optind++]);
-	for(; optind < argc; optind++)
-		chmodr(argv[optind]);
-	return EXIT_SUCCESS;
+        if(argc < 3){
+                fprint(2, "usage: chmod 0777 file ... or chmod [who]op[rwxalt] file ...\n");
+                exits("usage");
+        }
+        mode = strtol(argv[1], &p, 8);
+        if(*p == 0)
+                mask = A(DMRWE);
+        else if(!parsemode(argv[1], &mask, &mode)){
+                fprint(2, "chmod: bad mode: %s\n", argv[1]);
+                exits("mode");
+        }
+        nulldir(&ndir);
+        for(i=2; i<argc; i++){
+                dir = dirstat(argv[i]);
+                if(dir == nil){
+                        fprint(2, "chmod: can't stat %s: %r\n", argv[i]);
+                        continue;
+                }
+                ndir.mode = (dir->mode & ~mask) | (mode & mask);
+                free(dir);
+                if(dirwstat(argv[i], &ndir)==-1){
+                        fprint(2, "chmod: can't wstat %s: %r\n", argv[i]);
+                        continue;
+                }
+        }
+        exits(0);
 }
 
-void
-chmodr(const char *path)
+int
+parsemode(char *spec, ulong *pmask, ulong *pmode)
 {
-	struct stat st;
+        ulong mode, mask;
+        int done, op;
+        char *s;
 
-	if(stat(path, &st) == -1)
-		eprintf("stat %s:", path);
-
-	switch(oper) {
-	case '+':
-		st.st_mode |= mode;
-		break;
-	case '-':
-		st.st_mode &= ~mode;
-		break;
-	case '=':
-		st.st_mode = mode;
-		break;
-	}
-	if(chmod(path, st.st_mode) == -1)
-		eprintf("chmod %s:", path);
-	if(rflag)
-		recurse(path, chmodr);
-}
-
-void
-parsemode(const char *str)
-{
-	char *end;
-	const char *p;
-	int octal;
-	mode_t mask = 0;
-
-	octal = strtol(str, &end, 8);
-	if(*end == '\0') {
-		if(octal & 04000) mode |= S_ISUID;
-		if(octal & 02000) mode |= S_ISGID;
-		if(octal & 00400) mode |= S_IRUSR;
-		if(octal & 00200) mode |= S_IWUSR;
-		if(octal & 00100) mode |= S_IXUSR;
-		if(octal & 00040) mode |= S_IRGRP;
-		if(octal & 00020) mode |= S_IWGRP;
-		if(octal & 00010) mode |= S_IXGRP;
-		if(octal & 00004) mode |= S_IROTH;
-		if(octal & 00002) mode |= S_IWOTH;
-		if(octal & 00001) mode |= S_IXOTH;
-		return;
-	}
-	for(p = str; *p; p++)
-		switch(*p) {
-		/* masks */
-		case 'u':
-			mask |= S_IRWXU;
-			break;
-		case 'g':
-			mask |= S_IRWXG;
-			break;
-		case 'o':
-			mask |= S_IRWXO;
-			break;
-		case 'a':
-			mask |= S_IRWXU|S_IRWXG|S_IRWXO;
-			break;
-		/* opers */
-		case '+':
-		case '-':
-		case '=':
-			oper = *p;
-			break;
-		/* modes */
-		case 'r':
-			mode |= S_IRUSR|S_IRGRP|S_IROTH;
-			break;
-		case 'w':
-			mode |= S_IWUSR|S_IWGRP|S_IWOTH;
-			break;
-		case 'x':
-			mode |= S_IXUSR|S_IXGRP|S_IXOTH;
-			break;
-		case 's':
-			mode |= S_ISUID|S_ISGID;
-			break;
-		/* error */
-		default:
-			eprintf("%s: invalid mode\n", str);
-		}
-	if(mask)
-		mode &= mask;
+        s = spec;
+        mask = DMAPPEND | DMEXCL | DMTMP;
+        for(done=0; !done; ){
+                switch(*s){
+                case 'u':
+                        mask |= U(DMRWE); break;
+                case 'g':
+                        mask |= G(DMRWE); break;
+                case 'o':
+                        mask |= O(DMRWE); break;
+                case 'a':
+                        mask |= A(DMRWE); break;
+                case 0:
+                        return 0;
+                default:
+                        done = 1;
+                }
+                if(!done)
+                        s++;
+        }
+        if(s == spec)
+                mask |= A(DMRWE);
+        op = *s++;
+        if(op != '+' && op != '-' && op != '=')
+                return 0;
+        mode = 0;
+        for(; *s ; s++){
+                switch(*s){
+                case 'r':
+                        mode |= A(DMREAD); break;
+                case 'w':
+                        mode |= A(DMWRITE); break;
+                case 'x':
+                        mode |= A(DMEXEC); break;
+                case 'a':
+                        mode |= DMAPPEND; break;
+                case 'l':
+                        mode |= DMEXCL; break;
+                case 't':
+                        mode |= DMTMP; break;
+                default:
+                        return 0;
+                }
+        }
+        if(*s != 0)
+                return 0;
+        if(op == '+' || op == '-')
+                mask &= mode;
+        if(op == '-')
+                mode = ~mode;
+        *pmask = mask;
+        *pmode = mode;
+        return 1;
 }
