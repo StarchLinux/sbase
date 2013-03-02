@@ -1,98 +1,166 @@
-/* See LICENSE file for copyright and license details. */
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include "text.h"
-#include "util.h"
+/* Distributed under the Lucent Public License version 1.02 */
+/*
+ * Deal with duplicated lines in a file
+ */
+#include <u.h>
+#include <libc.h>
+#include <bio.h>
+#include <ctype.h>
 
-static void uniq_line(char *);
-static void uniq(FILE *, const char *);
-static void uniq_finish(void);
+#define	SIZE	8000
 
-static const char *countfmt = "";
-static bool dflag = false;
-static bool uflag = false;
+int	fields	= 0;
+int	letters	= 0;
+int	linec	= 0;
+char	mode;
+int	uniq;
+char	*b1, *b2;
+long	bsize;
+Biobuf	fin;
+Biobuf	fout;
 
-static char *prev_line = NULL;
-static long prev_line_count = 0;
+int	gline(char *buf);
+void	pline(char *buf);
+int	equal(char *b1, char *b2);
+char*	skip(char *s);
 
-int
+void
 main(int argc, char *argv[])
 {
-	int c;
-	FILE *fp;
+	int f;
 
-	while((c = getopt(argc, argv, "cdu")) != -1)
-		switch(c) {
-		case 'c':
-			countfmt = "%7ld ";
-			break;
-		case 'd':
-			dflag = true;
-			break;
-		case 'u':
-			uflag = true;
-			break;
-		default:
-			exit(2);
+	argv0 = argv[0];
+	bsize = SIZE;
+	b1 = malloc(bsize);
+	b2 = malloc(bsize);
+	f = 0;
+	while(argc > 1) {
+		if(*argv[1] == '-') {
+			if(isdigit(argv[1][1]))
+				fields = atoi(&argv[1][1]);
+			else
+				mode = argv[1][1];
+			argc--;
+			argv++;
+			continue;
 		}
+		if(*argv[1] == '+') {
+			letters = atoi(&argv[1][1]);
+			argc--;
+			argv++;
+			continue;
+		}
+		f = open(argv[1], 0);
+		if(f < 0)
+			sysfatal("cannot open %s", argv[1]);
+		break;
+	}
+	if(argc > 2)
+		sysfatal("unexpected argument %s", argv[2]);
+	Binit(&fin, f, OREAD);
+	Binit(&fout, 1, OWRITE);
 
-	if(optind == argc)
-		uniq(stdin, "<stdin>");
-	else if(optind == argc - 1) {
-		if(strcmp(argv[optind], "-") == 0) argv[optind] = "/dev/stdin";
-		if(!(fp = fopen(argv[optind], "r")))
-			eprintf("fopen %s:", argv[optind]);
-		uniq(fp, argv[optind]);
-		fclose(fp);
-	} else
-		enprintf(2, "too many arguments\n");
-	uniq_finish();
+	if(gline(b1))
+		exits(0);
+	for(;;) {
+		linec++;
+		if(gline(b2)) {
+			pline(b1);
+			exits(0);
+		}
+		if(!equal(b1, b2)) {
+			pline(b1);
+			linec = 0;
+			do {
+				linec++;
+				if(gline(b1)) {
+					pline(b2);
+					exits(0);
+				}
+			} while(equal(b2, b1));
+			pline(b2);
+			linec = 0;
+		}
+	}
+}
 
-	return EXIT_SUCCESS;
+int
+gline(char *buf)
+{
+	int len;
+	char *p;
+
+	p = Brdline(&fin, '\n');
+	if(p == 0)
+		return 1;
+	len = Blinelen(&fin);
+	if(len >= bsize-1)
+		sysfatal("line too long");
+	memmove(buf, p, len);
+	buf[len-1] = 0;
+	return 0;
 }
 
 void
-uniq_line(char *l)
+pline(char *buf)
 {
-	bool lines_equal = ((l == NULL) || (prev_line == NULL))
-		? l == prev_line
-		: !strcmp(l, prev_line);
+	switch(mode) {
 
-	if(lines_equal) {
-		++prev_line_count;
+	case 'u':
+		if(uniq) {
+			uniq = 0;
+			return;
+		}
+		break;
+
+	case 'd':
+		if(uniq)
+			break;
 		return;
-	}
 
-	if(prev_line != NULL) {
-		if((prev_line_count == 1 && !dflag) ||
-		   (prev_line_count != 1 && !uflag)) {
-			printf(countfmt, prev_line_count);
-			fputs(prev_line, stdout);
+	case 'c':
+		Bprint(&fout, "%4d ", linec);
+	}
+	uniq = 0;
+	Bprint(&fout, "%s\n", buf);
+}
+
+int
+equal(char *b1, char *b2)
+{
+	char c;
+
+	if(fields || letters) {
+		b1 = skip(b1);
+		b2 = skip(b2);
+	}
+	for(;;) {
+		c = *b1++;
+		if(c != *b2++) {
+			if(c == 0 && mode == 's')
+				return 1;
+			return 0;
 		}
-		free(prev_line);
-		prev_line = NULL;
+		if(c == 0) {
+			uniq++;
+			return 1;
+		}
 	}
-
-	if(l && !(prev_line = strdup(l)))
-		eprintf("strdup:");
-	prev_line_count = 1;
 }
 
-void
-uniq(FILE *fp, const char *str)
+char*
+skip(char *s)
 {
-	char *buf = NULL;
-	size_t size = 0;
+	int nf, nl;
 
-	while(afgets(&buf, &size, fp))
-		uniq_line(buf);
-}
-
-void
-uniq_finish()
-{
-	uniq_line(NULL);
+	nf = nl = 0;
+	while(nf++ < fields) {
+		while(*s == ' ' || *s == '\t')
+			s++;
+		while(!(*s == ' ' || *s == '\t' || *s == 0) ) 
+			s++;
+	}
+	while(nl++ < letters && *s != 0) 
+			s++;
+	return s;
 }
