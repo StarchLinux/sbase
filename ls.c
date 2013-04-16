@@ -42,7 +42,7 @@ void ls1 (char *fmt, int flags, char *path) {
 	struct stat s;
 	if (lstat (path, &s) < 0) eprintf ("ls: %s:", path);
 	if (!(flags & lFlag)) fmt = "%N%n";
-	if (!fmt) fmt = "%p  %l %u %g %z %m %N%n";
+	if (!fmt) fmt = "%P  %l %u %g %z %m %N%n";
 	for (; fmt[0]; fmt++) {
 		if (fmt[0] == '%') {
 			int w = 0, ii;
@@ -71,6 +71,9 @@ void ls1 (char *fmt, int flags, char *path) {
 				printf ("%*d", w ? w : 16, s.st_ino);
 				break;
 			case 'p':
+				printf ("%.4o", s.st_mode & 0x0FFF);
+				break;
+			case 'P':
 				for (ii = 0; ii < 9; ii++) {
 					char *rwx;
 					rwx = "xwr";
