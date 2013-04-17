@@ -71,7 +71,7 @@ void ls1 (char *fmt, int flags, char *path) {
 				fputc ('\t', stdout);
 				break;
 			case 'd':
-				printf ("%*d", w ? w : 12, s.st_dev);
+				printf ("%*d", w ? w : 8, s.st_dev);
 				break;
 			case 'i':
 				printf ("%*d", w ? w : 16, s.st_ino);
@@ -93,6 +93,12 @@ void ls1 (char *fmt, int flags, char *path) {
 				break;
 			case 'm':
 				printf ("%*d", w ? w : 20, s.st_mtime);
+				break;
+			case 'v':
+				printf ("%*d", w ? w : 4, minor (s.st_rdev));
+				break;
+			case 'V':
+				printf ("%*d", w ? w : 4, major (s.st_rdev));
 				break;
 			case 'x':
 				printf ("%c", parseXD (++fmt, 4));

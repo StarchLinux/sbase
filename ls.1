@@ -41,7 +41,7 @@ In long mode, ls prints more properties of each file, which are determined by th
 Literal \'%\', newline, tab
 .TP
 .B %d
-Device number
+Number of device what holds file
 .TP
 .B %i
 Inode number
@@ -60,6 +60,12 @@ Owner uid, gid
 .TP
 .B %m
 Modification time, seconds since epoch
+.TP
+.B %v
+Device minor number
+.TP
+.B %V
+Device major number
 .TP
 .B %z
 File size, bytes
