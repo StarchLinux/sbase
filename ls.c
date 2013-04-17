@@ -38,6 +38,14 @@ unsigned int parseXD (char *s, int l) {
 	return n;
 }
 
+void showUnixMode (int mode) {
+	int ii;
+	char x[] = "----------";
+	for (ii = 0; ii < 9; ii++) if (mode & (1 << ii)) x[9 - ii] = "xwr"[ii % 3];
+	if (mode & S_IFDIR) x[0] = 'd';
+	printf ("%s", x);
+}
+
 void ls1 (char *fmt, int flags, char *path) {
 	struct stat s;
 	if (lstat (path, &s) < 0) eprintf ("ls: %s:", path);
@@ -45,14 +53,12 @@ void ls1 (char *fmt, int flags, char *path) {
 	if (!fmt) fmt = "%P  %l %u %g %z %m %N%n";
 	for (; fmt[0]; fmt++) {
 		if (fmt[0] == '%') {
-			int w = 0, ii;
-			char *mode, *p;
+			int w = 0;
+			char *p;
 			if(!*fmt++) {
 				fputs ("ls: bad format\n", stderr);
 				exit (1);
 			}
-			mode = strdup ("----------");
-			if (!mode) eprintf ("ls:");
 			if (fmt[0] >= '0' && fmt[0] <= '9') w = strtoul (fmt, &fmt, 10);
 			switch (fmt[0]) {
 			case '%':
@@ -74,13 +80,7 @@ void ls1 (char *fmt, int flags, char *path) {
 				printf ("%.4o", s.st_mode & 0x0FFF);
 				break;
 			case 'P':
-				for (ii = 0; ii < 9; ii++) {
-					char *rwx;
-					rwx = "xwr";
-					if (s.st_mode & (1 << ii)) mode[9 - ii] = rwx[ii % 3];
-				}
-				if (s.st_mode & S_IFDIR) mode[0] = 'd';
-				printf ("%s", mode);
+				showUnixMode (s.st_mode);
 				break;
 			case 'l':
 				printf ("%*d", w ? w : 4, s.st_nlink);
@@ -109,7 +109,6 @@ void ls1 (char *fmt, int flags, char *path) {
 				fprintf (stderr, "ls: unrecognized format spec: %c\n", fmt[0]);
 				exit (1);
 			}
-			free (mode);
 		}
 		else fputc (fmt[0], stdout);
 	}
