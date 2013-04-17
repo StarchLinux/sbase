@@ -109,7 +109,7 @@ void ls1 (char *fmt, int flags, char *path) {
 				break;
 			case 'N':
 				p = flags & pFlag ? utfrrune (path, L'/') : 0;
-				fputs (p ? p + runelen (L'/') : path, stdout);
+				printf ("%-*s", w ? w : 24, p ? p + runelen (L'/') : path);
 				break;
 			default:
 				fprintf (stderr, "ls: unrecognized format spec: %c\n", fmt[0]);
