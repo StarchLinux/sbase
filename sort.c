@@ -9,8 +9,7 @@
 
 static int linecmp(const char **, const char **);
 
-static bool rflag = false;
-static bool uflag = false;
+static bool rflag = false, uflag = false, nflag = false;
 
 static char delim = '\n';
 
@@ -23,8 +22,11 @@ main(int argc, char *argv[])
 	long i;
 	FILE *fp;
 
-	while((c = getopt(argc, argv, "ruz")) != -1)
+	while((c = getopt(argc, argv, "nruz")) != -1)
 		switch(c) {
+		case 'n':
+			nflag = true;
+			break;
 		case 'r':
 			rflag = true;
 			break;
@@ -57,5 +59,5 @@ main(int argc, char *argv[])
 int
 linecmp(const char **a, const char **b)
 {
-	return strcmp(*a, *b) * (rflag ? -1 : +1);
+	return (nflag ? strtoul (*a, 0, 10) - strtoul (*b, 0, 10) : strcmp(*a, *b)) * (rflag ? -1 : +1);
 }
